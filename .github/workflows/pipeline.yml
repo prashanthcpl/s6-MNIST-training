@@ -1,0 +1,49 @@
+name: Training Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r s6/requirements.txt
+        
+    - name: Run model tests
+      run: |
+        python -c "
+        import torch
+        import sys
+        sys.path.append('.')
+        from s6.model import Net
+        
+        # Test model creation
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model = Net().to(device)
+        
+        # Test forward pass
+        x = torch.randn(1, 1, 28, 28).to(device)
+        output = model(x)
+        
+        # Test output shape
+        assert output.shape == (1, 10), f'Expected output shape (1, 10), got {output.shape}'
+        
+        # Test output probabilities
+        assert torch.allclose(output.exp().sum(), torch.tensor(1.0)), 'Output probabilities should sum to 1'
+        
+        print('✓ All model tests passed')
+        " 
